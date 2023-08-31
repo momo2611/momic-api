@@ -4,7 +4,7 @@ Vietnamese Comics API using Cheerio scrap.
 
 ## ❌ Don't use this to crawl image!
 
-### **URL**: (https://momic-api.vercel.app/)https://momic-api.vercel.app/
+### **URL**: https://momic-api.vercel.app/
 
 ## Usage
 
