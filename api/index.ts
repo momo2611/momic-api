@@ -2,11 +2,13 @@ import express from "express";
 import axios from "axios";
 import { Comics } from "..";
 import { userAgents, UALength } from "../user-agent";
+import helmet from "helmet";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(require("cors")());
+app.use(helmet());
 
 const allStatus = ["all", "completed", "ongoing"];
 
