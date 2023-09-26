@@ -1,31 +1,34 @@
-import { load } from 'cheerio';
-import axios from 'axios';
-import dotenv from 'dotenv';
-import https from 'https';
-import { userAgents, UALength } from './user-agent';
+import { load } from "cheerio";
+import axios from "axios";
+import dotenv from "dotenv";
+import https from "https";
+import { userAgents, UALength } from "./user-agent";
+import { AnyCnameRecord } from "dns";
 
 dotenv.config();
 const agent = new https.Agent({
   rejectUnauthorized: false,
 });
 
-type Status = 'all' | 'completed' | 'ongoing';
+type Status = "all" | "completed" | "ongoing";
 class ComicsApi {
   private agent: string;
   private hosts: string[];
+  private hostNews: any;
 
   constructor() {
-    this.hosts = process.env.HOSTS?.split(' | ') as string[];
+    this.hosts = process.env.HOSTS?.split(" | ") as string[];
+    this.hostNews = process.env.HOST_NEWS;
     this.agent = userAgents[Math.floor(Math.random() * UALength)];
   }
 
   private async createRequest(path: string, host: 1 | 2 | 3 = 2): Promise<any> {
     try {
       const { data } = await axios.request({
-        method: 'GET',
-        url: `https://${this.hosts[host - 1]}/${path}`.replace(/\?+/g, '?'),
+        method: "GET",
+        url: `https://${this.hosts[host - 1]}/${path}`.replace(/\?+/g, "?"),
         headers: {
-          'User-Agent': this.agent,
+          "User-Agent": this.agent,
         },
         httpsAgent: agent,
       });
@@ -35,24 +38,71 @@ class ComicsApi {
     }
   }
 
+  private async createRequestNews(path: string): Promise<any> {
+    try {
+      const { data } = await axios.request({
+        method: "GET",
+        url: `https://${this.hostNews}${path}`.replace(/\?+/g, "?"),
+        headers: {
+          "User-Agent": this.agent,
+        },
+        httpsAgent: agent,
+      });
+      return load(data);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  private async getNews(page: number = 1): Promise<any> {
+    try {
+      const [$] = await Promise.all([this.createRequestNews(`?p=${page}`)]);
+      const news: any = Array.from($(".main-list .box-unit3")).map((item) => {
+        const title = $("ul .title", item).text();
+        const tags = $("ul .tags span", item).text();
+        const update = $("ul .update span", item).text();
+        const cover = $(".mr8 img", item).attr("data-src");
+        const link = $(".box-unit3-btn", item).attr("href");
+        return {
+          title,
+          tags,
+          update,
+          link,
+          cover,
+        };
+      });
+      return { news, current_page: page };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  public async getAllNews(page: number = 1): Promise<any> {
+    try {
+      return await this.getNews(page);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   private getId(link?: string): string | undefined {
-    if (!link) return '';
+    if (!link) return "";
     return link?.match(/\/([^/]+?)(?:-\d+)?$/)?.[1];
   }
 
   private formatTotal(total: string): number | string {
     if (!total) return 0;
-    return total === 'N/A' ? 'Updating' : Number(total?.replace(/\./g, ''));
+    return total === "N/A" ? "Updating" : Number(total?.replace(/\./g, ""));
   }
 
   private trim(text: string): string | undefined {
-    return text?.replace(/\n|\t/g, '').trim();
+    return text?.replace(/\n|\t/g, "").trim();
   }
 
   private async getComics(
     path: string,
     page: number = 1,
-    statusKey: Status = 'all'
+    statusKey: Status = "all"
   ): Promise<any> {
     const status: any = {
       all: -1,
@@ -62,53 +112,53 @@ class ComicsApi {
     try {
       const [$, allGenres] = await Promise.all([
         this.createRequest(
-          `${path + (path.includes('?') ? '&' : '?')}status=${
+          `${path + (path.includes("?") ? "&" : "?")}status=${
             status[statusKey]
           }&page=${page}`
         ),
         this.getGenres(),
       ]);
       const total_pages =
-        $('.pagination li:nth-last-child(2) a')
-          .attr('href')
-          ?.split('=')
+        $(".pagination li:nth-last-child(2) a")
+          .attr("href")
+          ?.split("=")
           .at(-1) ||
-        $('.pagination .active').text() ||
+        $(".pagination .active").text() ||
         1;
       if (page > total_pages) {
-        return { status: 404, message: 'Page not found' };
+        return { status: 404, message: "Page not found" };
       }
-      const comics: any = Array.from($('#main_homepage .list_grid li')).map(
+      const comics: any = Array.from($("#main_homepage .list_grid li")).map(
         (item) => {
-          const thumbnail = $('.book_avatar img', item).attr('src');
-          const title = $('.book_avatar img', item).attr('alt');
-          const id = this.getId($('a', item).attr('href'));
-          const is_trending = !!$('.hot', item).toString();
-          const updated_at = $('.time-ago', item).text();
-          const short_description = this.trim($('.excerpt', item).text());
-          const other_names = $('.title-more-other', item)
+          const thumbnail = $(".book_avatar img", item).attr("src");
+          const title = $(".book_avatar img", item).attr("alt");
+          const id = this.getId($("a", item).attr("href"));
+          const is_trending = !!$(".hot", item).toString();
+          const updated_at = $(".time-ago", item).text();
+          const short_description = this.trim($(".excerpt", item).text());
+          const other_names = $(".title-more-other", item)
             .text()
-            .replace(/Tên khác: /, '')
-            .split('; ');
-          const status = $('.info', item)
+            .replace(/Tên khác: /, "")
+            .split("; ");
+          const status = $(".info", item)
             .text()
-            .replace(/Tình trạng: /, '');
-          const total_views = $('.info', item)
+            .replace(/Tình trạng: /, "");
+          const total_views = $(".info", item)
             .eq(1)
             .text()
             .match(/\d+/g)
-            .join('');
-          const followers = $('.info', item)
+            .join("");
+          const followers = $(".info", item)
             .eq(2)
             .text()
             .match(/\d+/g)
-            .join('');
-          const chapter_name = $('.last_chapter a', item).attr('title');
-          const chapter_id = $('.last_chapter a', item)
-            .attr('href')
-            .split('/')
+            .join("");
+          const chapter_name = $(".last_chapter a", item).attr("title");
+          const chapter_id = $(".last_chapter a", item)
+            .attr("href")
+            .split("/")
             .at(-1);
-          const genres = Array.from($('.list-tags p', item))
+          const genres = Array.from($(".list-tags p", item))
             .map((tag: any) => {
               const foundGenre = allGenres.find(
                 (g: any) =>
@@ -129,7 +179,7 @@ class ComicsApi {
             other_names: Array.isArray(other_names)
               ? other_names
               : [other_names],
-            status: status.includes('Đang') ? 'Ongoing' : 'Completed',
+            status: status.includes("Đang") ? "Ongoing" : "Completed",
             total_views: Number(total_views),
             followers: Number(followers),
             last_chapter: {
@@ -149,18 +199,18 @@ class ComicsApi {
 
   // ---------------------- //
 
-  public async getGenres(type: 'compact' | 'full' = 'compact'): Promise<any> {
+  public async getGenres(type: "compact" | "full" = "compact"): Promise<any> {
     try {
-      const $ = await this.createRequest('', type === 'full' ? 1 : 2);
+      const $ = await this.createRequest("", type === "full" ? 1 : 2);
       const selector =
-        type === 'compact'
-          ? '.menu_hidden:nth-child(2) a'
-          : '#mainNav .clearfix li a';
+        type === "compact"
+          ? ".menu_hidden:nth-child(2) a"
+          : "#mainNav .clearfix li a";
       return Array.from($(selector)).map((item) => {
-        const id = $(item).attr('href').split('/').at(-1);
+        const id = $(item).attr("href").split("/").at(-1);
         const name = this.trim($(item).text());
-        const description = $(item).attr('data-title');
-        return { id: id === 'tim-truyen' ? 'all' : id, name, description };
+        const description = $(item).attr("data-title");
+        return { id: id === "tim-truyen" ? "all" : id, name, description };
       });
     } catch (err) {
       throw err;
@@ -168,15 +218,15 @@ class ComicsApi {
   }
 
   public async getRecommendComics(): Promise<any> {
-    const $ = await this.createRequest('', 2);
-    const comics = Array.from($('#div_suggest li')).map((item) => {
-      const id = this.getId($('a', item).attr('href'));
-      const title = $('img', item).attr('alt');
-      const thumbnail = $('img', item).attr('src');
-      const updated_at = this.trim($('.time-ago', item).text());
-      const name = $('.last_chapter > a', item).text();
+    const $ = await this.createRequest("", 2);
+    const comics = Array.from($("#div_suggest li")).map((item) => {
+      const id = this.getId($("a", item).attr("href"));
+      const title = $("img", item).attr("alt");
+      const thumbnail = $("img", item).attr("src");
+      const updated_at = this.trim($(".time-ago", item).text());
+      const name = $(".last_chapter > a", item).text();
       const chapter_id = Number(
-        $('.last_chapter > a', item).attr('href').split('/').at(-1)
+        $(".last_chapter > a", item).attr("href").split("/").at(-1)
       );
       return {
         id,
@@ -194,7 +244,7 @@ class ComicsApi {
 
   public async getNewComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=15', page);
+      return await this.getComics("tim-truyen?sort=15", page);
     } catch (err) {
       throw err;
     }
@@ -202,7 +252,7 @@ class ComicsApi {
 
   public async getRecentUpdateComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?', page);
+      return await this.getComics("tim-truyen?", page);
     } catch (err) {
       throw err;
     }
@@ -210,7 +260,7 @@ class ComicsApi {
 
   public async getTrendingComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('', page);
+      return await this.getComics("", page);
     } catch (err) {
       throw err;
     }
@@ -218,7 +268,7 @@ class ComicsApi {
 
   public async getBoyComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('truyen-tranh-con-trai?', page);
+      return await this.getComics("truyen-tranh-con-trai?", page);
     } catch (err) {
       throw err;
     }
@@ -226,7 +276,7 @@ class ComicsApi {
 
   public async getGirlComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('truyen-tranh-con-gai?', page);
+      return await this.getComics("truyen-tranh-con-gai?", page);
     } catch (err) {
       throw err;
     }
@@ -237,7 +287,7 @@ class ComicsApi {
     page: number = 1
   ): Promise<any> {
     try {
-      const path = genreId === 'all' ? 'tim-truyen?' : `tim-truyen/${genreId}?`;
+      const path = genreId === "all" ? "tim-truyen?" : `tim-truyen/${genreId}?`;
       return await this.getComics(path, page);
     } catch (err) {
       throw err;
@@ -246,84 +296,84 @@ class ComicsApi {
 
   public async getCompletedComics(page: number = 1): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?status=2', page, 'completed');
+      return await this.getComics("tim-truyen?status=2", page, "completed");
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopAllComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=10', page, status);
+      return await this.getComics("tim-truyen?sort=10", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopDailyComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=13', page, status);
+      return await this.getComics("tim-truyen?sort=13", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopWeeklyComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=12', page, status);
+      return await this.getComics("tim-truyen?sort=12", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopMonthlyComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=11', page, status);
+      return await this.getComics("tim-truyen?sort=11", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopFollowComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=20', page, status);
+      return await this.getComics("tim-truyen?sort=20", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopCommentComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=25', page, status);
+      return await this.getComics("tim-truyen?sort=25", page, status);
     } catch (err) {
       throw err;
     }
   }
 
   public async getTopChapterComics(
-    status: Status = 'all',
+    status: Status = "all",
     page: number = 1
   ): Promise<any> {
     try {
-      return await this.getComics('tim-truyen?sort=30', page, status);
+      return await this.getComics("tim-truyen?sort=30", page, status);
     } catch (err) {
       throw err;
     }
@@ -335,30 +385,30 @@ class ComicsApi {
         this.createRequest(`truyen-tranh/${comicId}-1`),
         this.getChapters(comicId),
       ]);
-      const title = $('.book_detail h1').text();
-      const thumbnail = $('.book_detail img').attr('src');
-      const description = this.trim($('.detail-content p').text());
-      let authors = $('.author p:nth-child(2)').text();
+      const title = $(".book_detail h1").text();
+      const thumbnail = $(".book_detail img").attr("src");
+      const description = this.trim($(".detail-content p").text());
+      let authors = $(".author p:nth-child(2)").text();
       authors = /, |;\s*| - /.test(authors)
         ? authors.split(/, |;\s*| - /)
-        : authors.toLowerCase() !== 'đang cập nhật'
-        ? $('.author p:nth-child(2)').text()
-        : 'Updating';
+        : authors.toLowerCase() !== "đang cập nhật"
+        ? $(".author p:nth-child(2)").text()
+        : "Updating";
       const status =
-        $('.status p:nth-child(2)').text() === 'Hoàn thành'
-          ? 'Completed'
-          : 'Ongoing';
-      const genres = Array.from($('.list01 a')).map((item) => {
-        const id = this.getId($(item).attr('href'));
+        $(".status p:nth-child(2)").text() === "Hoàn thành"
+          ? "Completed"
+          : "Ongoing";
+      const genres = Array.from($(".list01 a")).map((item) => {
+        const id = this.getId($(item).attr("href"));
         const name = $(item).text();
         return { id, name };
       });
-      const other_names = $('.other_name p:nth-child(2)').text().split('; ');
+      const other_names = $(".other_name p:nth-child(2)").text().split("; ");
       const total_views = this.formatTotal(
-        $('.list-info .row:last-child p:nth-child(2)').text()
+        $(".list-info .row:last-child p:nth-child(2)").text()
       );
       const followers = this.formatTotal(
-        $('.list-info .row:nth-last-child(2) p:nth-child(2)').text()
+        $(".list-info .row:nth-last-child(2) p:nth-child(2)").text()
       );
       return {
         title,
@@ -371,7 +421,7 @@ class ComicsApi {
         followers,
         chapters,
         id: comicId,
-        other_names: other_names[0] !== '' ? other_names : [],
+        other_names: other_names[0] !== "" ? other_names : [],
       };
     } catch (err) {
       throw err;
@@ -381,12 +431,12 @@ class ComicsApi {
   public async getChapters(comicId: string): Promise<any> {
     try {
       const $ = await this.createRequest(`truyen-tranh/${comicId}-1`, 1);
-      const id = $('.star').attr('data-id');
+      const id = $(".star").attr("data-id");
       const { data } = await axios.get(
         `https://${this.hosts[0]}/Comic/Services/ComicService.asmx/ProcessChapterList?comicId=${id}`,
         {
           headers: {
-            'User-Agent': this.agent,
+            "User-Agent": this.agent,
           },
         }
       );
@@ -408,15 +458,15 @@ class ComicsApi {
         this.createRequest(`truyen-tranh/${comicId}/chapter/${chapterId}`),
         this.getChapters(comicId),
       ]);
-      const images = Array.from($('.page-chapter img')).map((img, idx) => {
+      const images = Array.from($(".page-chapter img")).map((img, idx) => {
         const src = `https://comics-api.vercel.app/images?src=${$(img).attr(
-          'src'
+          "src"
         )}`;
         return { page: idx + 1, src };
       });
       const [comic_name, chapter_name]: any = this.trim(
-        $('.detail-title').text()
-      )?.split(' - ');
+        $(".detail-title").text()
+      )?.split(" - ");
       return { images, chapters, chapter_name, comic_name };
     } catch (err) {
       throw err;
@@ -426,29 +476,29 @@ class ComicsApi {
   public async getSearchSuggest(query: string): Promise<any> {
     try {
       query = query.trim();
-      if (!query) throw Error('Invalid query');
+      if (!query) throw Error("Invalid query");
       const { data } = await axios.get(
         `https:${this.hosts[0]}/Comic/Services/SuggestSearch.ashx?q=${query}`,
-        { headers: { 'User-Agent': this.agent } }
+        { headers: { "User-Agent": this.agent } }
       );
       const $ = load(data);
-      const suggestions = Array.from($('li')).map((comic) => {
-        const id = this.getId($('a', comic).attr('href'));
-        const thumbnail = $('img', comic).attr('src');
-        const title = $('h3', comic).text();
-        const lastest_chapter = $('i', comic).first().text();
-        const genres = $('i', comic).last().text();
-        const authors = $('b', comic).text() || 'Updating';
+      const suggestions = Array.from($("li")).map((comic) => {
+        const id = this.getId($("a", comic).attr("href"));
+        const thumbnail = $("img", comic).attr("src");
+        const title = $("h3", comic).text();
+        const lastest_chapter = $("i", comic).first().text();
+        const genres = $("i", comic).last().text();
+        const authors = $("b", comic).text() || "Updating";
         return {
           id,
           title,
           thumbnail,
-          lastest_chapter: lastest_chapter.startsWith('Chapter')
+          lastest_chapter: lastest_chapter.startsWith("Chapter")
             ? lastest_chapter
-            : 'Updating',
-          genres: genres !== lastest_chapter ? genres.split(',') : 'Updating',
+            : "Updating",
+          genres: genres !== lastest_chapter ? genres.split(",") : "Updating",
           authors:
-            authors === 'Đang cập nhật' ? 'Updating' : authors.split(' - '),
+            authors === "Đang cập nhật" ? "Updating" : authors.split(" - "),
         };
       });
       return suggestions;
@@ -460,7 +510,7 @@ class ComicsApi {
   public async searchComics(query: string, page: number = 1): Promise<any> {
     try {
       return await this.getComics(
-        `tim-truyen?keyword=${query.replace(/\s+/g, '+')}`,
+        `tim-truyen?keyword=${query.replace(/\s+/g, "+")}`,
         page
       );
     } catch (err) {

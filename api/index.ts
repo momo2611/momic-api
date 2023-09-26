@@ -12,6 +12,14 @@ app.use(helmet());
 
 const allStatus = ["all", "completed", "ongoing"];
 
+// News
+app.get("/daily-news", async (req, res) => {
+  const { query } = req;
+  const page = query.page ? Number(query.page) : 1;
+
+  res.json(await Comics.getAllNews(page));
+});
+
 // Genres
 app.get("/genres", async (req, res) => {
   res.json(await Comics.getGenres("full"));
