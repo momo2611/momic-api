@@ -5,7 +5,7 @@ import { userAgents, UALength } from "../user-agent";
 import helmet from "helmet";
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 
 app.use(require("cors")());
 app.use(helmet());

@@ -3,7 +3,6 @@ import axios from "axios";
 import dotenv from "dotenv";
 import https from "https";
 import { userAgents, UALength } from "./user-agent";
-import { AnyCnameRecord } from "dns";
 
 dotenv.config();
 const agent = new https.Agent({
@@ -57,21 +56,54 @@ class ComicsApi {
   private async getNews(page: number = 1): Promise<any> {
     try {
       const [$] = await Promise.all([this.createRequestNews(`?p=${page}`)]);
+      let updateNews = "";
       const news: any = Array.from($(".main-list .box-unit3")).map((item) => {
         const title = $("ul .title", item).text();
-        const tags = $("ul .tags span", item).text();
-        const update = $("ul .update span", item).text();
+        //@ts-ignore
+        $("ul .update span", item).each((index, element) => {
+          if (index == 1) {
+            const value = $(element).text();
+            updateNews = value;
+          }
+        });
         const cover = $(".mr8 img", item).attr("data-src");
         const link = $(".box-unit3-btn", item).attr("href");
+        const id = link.replace("https://myanimelist.net/news/", "");
         return {
           title,
-          tags,
-          update,
+          updateNews,
           link,
           cover,
+          id,
         };
       });
-      return { news, current_page: page };
+
+      let updateAnime = "";
+      const getAnime = $(".content-main .news-list").eq(1);
+      const newAnime: any = Array.from(getAnime.find(".box-unit3")).map(
+        (item) => {
+          const title = $("ul .title", item).text();
+          //@ts-ignore
+          $("ul .update span", item).each((index, element) => {
+            if (index == 0) {
+              const value = $(element).text();
+              updateAnime = value;
+            }
+          });
+          const cover = $(".mr8 img", item).attr("data-src");
+          const link = $(".box-unit3-btn", item).attr("href");
+          const id = link.replace("https://myanimelist.net/news/", "");
+          return {
+            title,
+            updateAnime,
+            link,
+            cover,
+            id,
+          };
+        }
+      );
+
+      return { news, newAnime, current_page: page };
     } catch (err) {
       throw err;
     }
