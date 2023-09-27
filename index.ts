@@ -56,46 +56,35 @@ class ComicsApi {
   private async getNews(page: number = 1): Promise<any> {
     try {
       const [$] = await Promise.all([this.createRequestNews(`?p=${page}`)]);
-      let updateNews = "";
       const news: any = Array.from($(".main-list .box-unit3")).map((item) => {
         const title = $("ul .title", item).text();
-        //@ts-ignore
-        $("ul .update span", item).each((index, element) => {
-          if (index == 1) {
-            const value = $(element).text();
-            updateNews = value;
-          }
-        });
+        const updateAt = $("ul .update .pr4", item).text();
+        const updateBy = $("ul .update .pr12", item).text();
         const cover = $(".mr8 img", item).attr("data-src");
         const link = $(".box-unit3-btn", item).attr("href");
         const id = link.replace("https://myanimelist.net/news/", "");
         return {
           title,
-          updateNews,
+          updateAt,
+          updateBy,
           link,
           cover,
           id,
         };
       });
 
-      let updateAnime = "";
       const getAnime = $(".content-main .news-list").eq(1);
       const newAnime: any = Array.from(getAnime.find(".box-unit3")).map(
         (item) => {
           const title = $("ul .title", item).text();
           //@ts-ignore
-          $("ul .update span", item).each((index, element) => {
-            if (index == 0) {
-              const value = $(element).text();
-              updateAnime = value;
-            }
-          });
+          const updateAt = $("ul .update .pr8", item).text();
           const cover = $(".mr8 img", item).attr("data-src");
           const link = $(".box-unit3-btn", item).attr("href");
           const id = link.replace("https://myanimelist.net/news/", "");
           return {
             title,
-            updateAnime,
+            updateAt,
             link,
             cover,
             id,
