@@ -480,10 +480,10 @@ class ComicsApi {
         this.getChapters(comicId),
       ]);
       const images = Array.from($(".page-chapter img")).map((img, idx) => {
-        const src = `https://momic-api.vercel.app/images?src=${$(img).attr(
+      const src = `https://comics-api.vercel.app/images?src=${$(img).attr(
           'src'
         )}`;
-        const backup_src = `https://momic-api.vercel.app/images?src=${$(
+        const backup_src = `https://comics-api.vercel.app/images?src=${$(
           img
         ).attr('data-sv1')}`;
         return { page: idx + 1, src, backup_src };
