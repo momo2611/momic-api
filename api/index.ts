@@ -188,7 +188,8 @@ app.get("/images", async (req: any, res: any) => {
     const response = await axios.get(src, {
       responseType: "stream",
       headers: {
-        referer: `https://${providers[Math.floor(Math.random() * 3)]}`,
+        referer: `https://${providers[0]}`,
+        //referer: `https://${providers[Math.floor(Math.random() * 3)]}`,
         "User-Agent": userAgents[Math.random() * UALength],
       },
     });
