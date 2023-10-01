@@ -1,6 +1,6 @@
 # Momics API
 
-Vietnamese Comics API using Cheerio scrap.
+Vietnamese Comics API using Cheerio crawl.
 
 ## ❌ Don't use this to crawl image!
 
