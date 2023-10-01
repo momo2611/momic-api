@@ -184,13 +184,11 @@ topComicsApiPaths.forEach(({ path, callback }) => {
 app.get("/images", async (req: any, res: any) => {
   try {
     const { src } = req.query;
-    //const providers = [process.env.SC1, process.env.SC2, process.env.SC3];
     const providers = [process.env.SC1, process.env.SC3];
     const response = await axios.get(src, {
       responseType: "stream",
       headers: {
-        referer: `https://nettruyennew.com}`,
-        //referer: `https://${providers[Math.floor(Math.random() * 3)]}`,
+        referer: `https://${providers[Math.floor(Math.random() * 2)]}`,
         "User-Agent": userAgents[Math.random() * UALength],
       },
     });
