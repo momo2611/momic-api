@@ -476,17 +476,17 @@ class ComicsApi {
   public async getChapter(comicId: string, chapterId: number): Promise<any> {
     try {
       const [$, chapters] = await Promise.all([
-        this.createRequest(`truyen-tranh/${comicId}/chapter/${chapterId}`),
+        this.createRequest(`truyen-tranh/${comicId}/chapter/${chapterId}`, Math.random() > 0.5 ? 1 : 3),
         this.getChapters(comicId),
       ]);
       const images = Array.from($(".page-chapter img")).map((img, idx) => {
         const src = `https://comics-api.vercel.app/images?src=${$(img).attr(
-          "src"
+          'data-sv1'
         )}`;
         return { page: idx + 1, src };
       });
       const [comic_name, chapter_name]: any = this.trim(
-        $(".detail-title").text()
+        $('.txt-primary').text().trim()
       )?.split(" - ");
       return { images, chapters, chapter_name, comic_name };
     } catch (err) {
